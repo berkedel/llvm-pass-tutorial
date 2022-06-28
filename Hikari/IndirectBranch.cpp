@@ -125,8 +125,13 @@ struct IndirectBranch : public FunctionPass {
             ConstantInt::get(Type::getInt32Ty(Func.getParent()->getContext()),
                              indexmap[BI->getSuccessor(0)]);
       }
+#if LLVM_VERSION_MAJOR >= 13
+      Value *GEP = IRB.CreateGEP(LoadFrom->getType()->getPointerElementType(), LoadFrom, {zero, index});
+      LoadInst *LI = IRB.CreateLoad(GEP->getType()->getPointerElementType(), GEP, "IndirectBranchingTargetAddress");
+#else
       Value *GEP = IRB.CreateGEP(LoadFrom, {zero, index});
       LoadInst *LI = IRB.CreateLoad(GEP, "IndirectBranchingTargetAddress");
+#endif
       IndirectBrInst *indirBr = IndirectBrInst::Create(LI, BBs.size());
       for (BasicBlock *BB : BBs) {
         indirBr->addDestination(BB);

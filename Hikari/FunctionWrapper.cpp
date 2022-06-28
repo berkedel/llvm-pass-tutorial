@@ -15,7 +15,6 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
@@ -28,6 +27,11 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#if LLVM_VERSION_MAJOR > 10
+#include "Transforms/Obfuscation/compat/CallSite.h"
+#else
+#include "llvm/IR/CallSite.h"
+#endif
 using namespace llvm;
 using namespace std;
 static cl::opt<int>
@@ -124,7 +128,11 @@ struct FunctionWrapper : public ModulePass {
     for (auto arg = func->arg_begin(); arg != func->arg_end(); arg++) {
       params.push_back(arg);
     }
-    Value *retval = IRB.CreateCall(ConstantExpr::getBitCast(cast<Function>(calledFunction),CS->getCalledValue()->getType()), ArrayRef<Value *>(params));
+    Value *retval = IRB.CreateCall(
+#if LLVM_VERSION_MAJOR >= 13
+      cast<FunctionType>(ConstantExpr::getBitCast(cast<Function>(calledFunction),CS->getCalledValue()->getType())->getType()->getPointerElementType()),
+#endif
+      ConstantExpr::getBitCast(cast<Function>(calledFunction),CS->getCalledValue()->getType()), ArrayRef<Value *>(params));
     if (ft->getReturnType()->isVoidTy()) {
       IRB.CreateRetVoid();
     } else {

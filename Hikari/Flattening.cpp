@@ -136,7 +136,11 @@ bool Flattening::flatten(Function *f) {
   loopEntry = BasicBlock::Create(f->getContext(), "loopEntry", f, insert);
   loopEnd = BasicBlock::Create(f->getContext(), "loopEnd", f, insert);
 
+#if LLVM_VERSION_MAJOR >= 13
+  load = new LoadInst(switchVar->getType()->getPointerElementType(), switchVar, "switchVar", loopEntry);
+#else
   load = new LoadInst(switchVar, "switchVar", loopEntry);
+#endif
 
   // Move first BB on top
   insert->moveBefore(loopEntry);
