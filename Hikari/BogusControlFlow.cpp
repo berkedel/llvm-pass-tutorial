@@ -843,3 +843,12 @@ FunctionPass *llvm::createBogusControlFlowPass() {
 FunctionPass *llvm::createBogusControlFlowPass(bool flag) {
   return new BogusControlFlow(flag);
 }
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses BogusControlFlowPass::run(Function& F, FunctionAnalysisManager& AM) {
+  BogusControlFlow bcf;
+  if (bcf.runOnFunction(F))
+    return PreservedAnalyses::none();
+  return PreservedAnalyses::all();
+}
+#endif

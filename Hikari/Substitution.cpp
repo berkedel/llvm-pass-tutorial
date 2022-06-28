@@ -605,3 +605,12 @@ void Substitution::xorSubstitutionRand(BinaryOperator *bo) {
   op = BinaryOperator::Create(Instruction::Xor, op, op1, "", bo);
   bo->replaceAllUsesWith(op);
 }
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses SubstitutionPass::run(Function& F, FunctionAnalysisManager& AM) {
+  Substitution s;
+  s.runOnFunction(F);
+
+  return PreservedAnalyses::all();
+}
+#endif

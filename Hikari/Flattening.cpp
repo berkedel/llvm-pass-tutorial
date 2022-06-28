@@ -254,3 +254,12 @@ bool Flattening::flatten(Function *f) {
   errs()<<"Fixed Stack\n";
   return true;
 }
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses FlatteningPass::run(Function& F, FunctionAnalysisManager& AM) {
+  Flattening cff;
+  cff.runOnFunction(F);
+  
+  return PreservedAnalyses::all();
+}
+#endif

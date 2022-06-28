@@ -153,3 +153,18 @@ FunctionPass *llvm::createIndirectBranchPass(bool flag) {
 }
 char IndirectBranch::ID = 0;
 INITIALIZE_PASS(IndirectBranch, "indibran", "IndirectBranching", true, true)
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses IndirectBranchPass::run(Module &M, ModuleAnalysisManager& AM) {
+  IndirectBranch IB;
+  vector<Function *> funcs;
+  for (Module::iterator iter = M.begin(); iter != M.end(); iter++) {
+    funcs.push_back(&*iter);
+  }
+  for (Function *F : funcs) {
+    IB.runOnFunction(*F);
+  }
+
+  return PreservedAnalyses::all();
+}
+#endif

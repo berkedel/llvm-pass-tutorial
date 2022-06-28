@@ -10,5 +10,12 @@ namespace llvm {
 	FunctionPass* createIndirectBranchPass();
 	FunctionPass* createIndirectBranchPass(bool flag);
 	void initializeIndirectBranchPass(PassRegistry &Registry);
+#if LLVM_VERSION_MAJOR >= 13
+	class IndirectBranchPass : public PassInfoMixin<IndirectBranchPass>{ 
+        public:
+            PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+            static bool isRequired() { return true; }
+	};
+#endif
 }
 #endif

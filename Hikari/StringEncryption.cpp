@@ -348,3 +348,12 @@ ModulePass *createStringEncryptionPass(bool flag) {
 char StringEncryption::ID = 0;
 INITIALIZE_PASS(StringEncryption, "strcry", "Enable String Encryption", true,
                 true)
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses StringEncryptionPass::run(Module &M, ModuleAnalysisManager& AM) {
+  StringEncryption SE;
+  SE.runOnModule(M);
+
+  return PreservedAnalyses::all();
+}
+#endif

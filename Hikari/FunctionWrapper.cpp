@@ -154,3 +154,12 @@ ModulePass *createFunctionWrapperPass(bool flag) {
 char FunctionWrapper::ID = 0;
 INITIALIZE_PASS(FunctionWrapper, "funcwra", "Enable FunctionWrapper.", true,
                 true)
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses FunctionWrapperPass::run(Module &M, ModuleAnalysisManager& AM) {
+  FunctionWrapper FW;
+  FW.runOnModule(M);
+
+  return PreservedAnalyses::all();
+}
+#endif

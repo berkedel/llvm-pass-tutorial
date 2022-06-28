@@ -761,3 +761,13 @@ struct AntiClassDump : public ModulePass {
 ModulePass *llvm::createAntiClassDumpPass() { return new AntiClassDump(); }
 char AntiClassDump::ID = 0;
 INITIALIZE_PASS(AntiClassDump, "acd", "Enable Anti-ClassDump.", true, true)
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses AntiClassDumpPass::run(Module &M, ModuleAnalysisManager& AM) {
+  AntiClassDump ACD;
+  ACD.doInitialization(M);
+  ACD.runOnModule(M);
+
+  return PreservedAnalyses::all();
+}
+#endif

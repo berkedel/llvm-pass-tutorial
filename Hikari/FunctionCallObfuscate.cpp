@@ -331,3 +331,17 @@ FunctionPass *createFunctionCallObfuscatePass(bool flag) {
 char FunctionCallObfuscate::ID = 0;
 INITIALIZE_PASS(FunctionCallObfuscate, "fcoobf",
                 "Enable Function CallSite Obfuscation.", true, true)
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses FunctionCallObfuscatePass::run(Module &M, ModuleAnalysisManager& AM) {
+  FunctionCallObfuscate FOC;
+  errs() << "FunctionCallObfuscate call\n";
+  FOC.doFinalization(M);
+  for (Module::iterator iter = M.begin(); iter != M.end(); iter++) {
+      Function &F = *iter;
+      if (!F.isDeclaration())
+        FOC.runOnFunction(F);
+  }
+  return PreservedAnalyses::all();
+}
+#endif
