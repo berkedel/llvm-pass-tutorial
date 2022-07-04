@@ -116,6 +116,15 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include <memory>
 
+namespace 
+{
+  using namespace llvm;
+  static BinaryOperator *CreateFNeg(Value *Op, const Twine &Name = "", Instruction *InsertBefore = nullptr) {
+    Value *zero = ConstantFP::getZeroValueForNegation(Op->getType());
+    return BinaryOperator::Create(Instruction::FSub, zero, Op, Name, InsertBefore);
+  }
+} // namespace 
+
 // Stats
 #define DEBUG_TYPE "BogusControlFlow"
 STATISTIC(NumFunction, "a. Number of functions in this module");
@@ -173,7 +182,11 @@ namespace {
       GV->eraseFromParent();
     }
     else if (!isa<Function>(C))
-      if (isa<CompositeType>(C->getType()))
+#if LLVM_VERSION_MAJOR >= 13
+    if (isa<StructType, ArrayType, VectorType>(C->getType()))
+#else
+    if (isa<CompositeType>(C->getType()))
+#endif
         C->destroyConstant();
 
     // If the constant referenced anything, see if we can delete it as well.
@@ -519,7 +532,11 @@ struct BogusControlFlow : public FunctionPass {
             case 0:                                    // do nothing
               break;
             case 1:
+#if LLVM_VERSION_MAJOR >= 13
+              op = ::CreateFNeg(i->getOperand(0), *var, &*i);
+#else
               op = BinaryOperator::CreateFNeg(i->getOperand(0), *var, &*i);
+#endif
               op1 = BinaryOperator::Create(Instruction::FAdd, op,
                                            i->getOperand(1), "gen", &*i);
               break;
@@ -742,8 +759,13 @@ struct BogusControlFlow : public FunctionPass {
       GlobalVariable *RHSGV =
           new GlobalVariable(M, Type::getInt32Ty(M.getContext()), false,
                              GlobalValue::PrivateLinkage, RHSC, "RHSGV");
+#if LLVM_VERSION_MAJOR >= 13
+      LoadInst *LHS = IRBReal.CreateLoad(LHSGV->getType()->getPointerElementType(), LHSGV, "Initial LHS");
+      LoadInst *RHS = IRBReal.CreateLoad(RHSGV->getType()->getPointerElementType(), RHSGV, "Initial LHS");
+#else
       LoadInst *LHS = IRBReal.CreateLoad(LHSGV, "Initial LHS");
       LoadInst *RHS = IRBReal.CreateLoad(RHSGV, "Initial LHS");
+#endif
       // To Speed-Up Evaluation
       Value *emuLHS = LHSC;
       Value *emuRHS = RHSC;
@@ -821,3 +843,12 @@ FunctionPass *llvm::createBogusControlFlowPass() {
 FunctionPass *llvm::createBogusControlFlowPass(bool flag) {
   return new BogusControlFlow(flag);
 }
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses BogusControlFlowPass::run(Function& F, FunctionAnalysisManager& AM) {
+  BogusControlFlow bcf;
+  if (bcf.runOnFunction(F))
+    return PreservedAnalyses::none();
+  return PreservedAnalyses::all();
+}
+#endif

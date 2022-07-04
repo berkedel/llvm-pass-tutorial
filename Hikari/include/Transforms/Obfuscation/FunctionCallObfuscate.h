@@ -10,5 +10,12 @@ namespace llvm {
 	FunctionPass* createFunctionCallObfuscatePass();
 	FunctionPass* createFunctionCallObfuscatePass(bool flag);
 	void initializeFunctionCallObfuscatePass(PassRegistry &Registry);
+#if LLVM_VERSION_MAJOR >= 13
+	class FunctionCallObfuscatePass : public PassInfoMixin<FunctionCallObfuscatePass>{ 
+        public:
+            PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+            static bool isRequired() { return true; }
+	};
+#endif
 }
 #endif

@@ -11,7 +11,7 @@ add_library(Hikari MODULE
         StringEncryption.cpp
         IndirectBranch.cpp
         FunctionWrapper.cpp
-        Obfuscation.cpp
+        # Obfuscation.cpp
         include/Transforms/Obfuscation/AntiClassDump.h
         include/Transforms/Obfuscation/BogusControlFlow.h
         include/Transforms/Obfuscation/CryptoUtils.h

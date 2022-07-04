@@ -34,7 +34,13 @@ namespace llvm {
 	FunctionPass *createFlatteningPass();
 	FunctionPass *createFlatteningPass(bool flag);
 	void initializeFlatteningPass(PassRegistry &Registry);
-
+#if LLVM_VERSION_MAJOR >= 13
+    class FlatteningPass : public PassInfoMixin<FlatteningPass>{ 
+        public:
+            PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+            static bool isRequired() { return true; }
+    };
+#endif
 }
 
 #endif

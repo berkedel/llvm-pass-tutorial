@@ -32,5 +32,12 @@ namespace llvm {
 	FunctionPass *createSplitBasicBlockPass();
 	FunctionPass *createSplitBasicBlockPass(bool flag);
 	void initializeSplitBasicBlockPass(PassRegistry &Registry);
+#if LLVM_VERSION_MAJOR >= 13
+	class SplitBasicBlockPass : public PassInfoMixin<SplitBasicBlockPass>{ 
+        public:
+            PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+            static bool isRequired() { return true; }
+    };
+#endif
 }
 #endif

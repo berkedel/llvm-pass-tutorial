@@ -141,3 +141,12 @@ void SplitBasicBlock::shuffle(std::vector<int> &vec) {
     std::swap(vec[i], vec[cryptoutils->get_uint32_t() % (i + 1)]);
   }
 }
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses SplitBasicBlockPass::run(Function& F, FunctionAnalysisManager& AM) {
+  SplitBasicBlock SBB;
+  SBB.runOnFunction(F);
+
+  return PreservedAnalyses::all();
+}
+#endif

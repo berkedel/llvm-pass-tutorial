@@ -136,7 +136,11 @@ bool Flattening::flatten(Function *f) {
   loopEntry = BasicBlock::Create(f->getContext(), "loopEntry", f, insert);
   loopEnd = BasicBlock::Create(f->getContext(), "loopEnd", f, insert);
 
+#if LLVM_VERSION_MAJOR >= 13
+  load = new LoadInst(switchVar->getType()->getPointerElementType(), switchVar, "switchVar", loopEntry);
+#else
   load = new LoadInst(switchVar, "switchVar", loopEntry);
+#endif
 
   // Move first BB on top
   insert->moveBefore(loopEntry);
@@ -250,3 +254,12 @@ bool Flattening::flatten(Function *f) {
   errs()<<"Fixed Stack\n";
   return true;
 }
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses FlatteningPass::run(Function& F, FunctionAnalysisManager& AM) {
+  Flattening cff;
+  cff.runOnFunction(F);
+  
+  return PreservedAnalyses::all();
+}
+#endif

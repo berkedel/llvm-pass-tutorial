@@ -45,5 +45,12 @@ namespace llvm {
 	FunctionPass *createBogusControlFlowPass();
 	FunctionPass *createBogusControlFlowPass(bool flag);
 	void initializeBogusControlFlowPass(PassRegistry &Registry);
+#if LLVM_VERSION_MAJOR >= 13
+	class BogusControlFlowPass : public PassInfoMixin<BogusControlFlowPass>{ 
+        public:
+            PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+            static bool isRequired() { return true; }
+    };
+#endif
 }
 #endif

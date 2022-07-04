@@ -19,7 +19,6 @@
 
 #include "json.hpp"
 #include "llvm/ADT/Triple.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
@@ -37,6 +36,11 @@
 #include <iostream>
 #include <regex>
 #include <string>
+#if LLVM_VERSION_MAJOR > 10
+#include "Transforms/Obfuscation/compat/CallSite.h"
+#else
+#include "llvm/IR/CallSite.h"
+#endif
 using namespace llvm;
 using namespace std;
 using json = nlohmann::json;
@@ -60,7 +64,11 @@ struct FunctionCallObfuscate : public FunctionPass {
       SmallString<32> Path;
       if (sys::path::home_directory(Path)) { // Stolen from LineEditor.cpp
         sys::path::append(Path, "Hikari", "SymbolConfig.json");
+#if LLVM_VERSION_MAJOR >= 13
+        SymbolConfigPath = Path.str().str();
+#else
         SymbolConfigPath = Path.str();
+#endif
       }
     }
     ifstream infile(SymbolConfigPath);
@@ -100,7 +108,11 @@ struct FunctionCallObfuscate : public FunctionPass {
     M.getOrInsertFunction("objc_getClass", objc_getClass_type);
     M.getOrInsertFunction("objc_getMetaClass", objc_getClass_type);
     StructType *objc_property_attribute_t_type = reinterpret_cast<StructType *>(
+#if LLVM_VERSION_MAJOR >= 13
+        StructType::getTypeByName(M.getContext(), "struct.objc_property_attribute_t"));
+#else
         M.getTypeByName("struct.objc_property_attribute_t"));
+#endif
     if (objc_property_attribute_t_type == NULL) {
       vector<Type *> types;
       types.push_back(Int8PtrTy);
@@ -157,7 +169,11 @@ struct FunctionCallObfuscate : public FunctionPass {
       GlobalVariable &GV = *G;
       if (GV.getName().str().find("OBJC_CLASSLIST_REFERENCES") == 0) {
         if (GV.hasInitializer()) {
+#if LLVM_VERSION_MAJOR >= 13
+          string className = GV.getInitializer()->getName().str();
+#else
           string className = GV.getInitializer()->getName();
+#endif
           className.replace(className.find("OBJC_CLASS_$_"),
                             strlen("OBJC_CLASS_$_"), "");
           for (auto U = GV.user_begin(); U != GV.user_end(); U++) {
@@ -315,3 +331,17 @@ FunctionPass *createFunctionCallObfuscatePass(bool flag) {
 char FunctionCallObfuscate::ID = 0;
 INITIALIZE_PASS(FunctionCallObfuscate, "fcoobf",
                 "Enable Function CallSite Obfuscation.", true, true)
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses FunctionCallObfuscatePass::run(Module &M, ModuleAnalysisManager& AM) {
+  FunctionCallObfuscate FOC;
+  errs() << "FunctionCallObfuscate call\n";
+  FOC.doFinalization(M);
+  for (Module::iterator iter = M.begin(); iter != M.end(); iter++) {
+      Function &F = *iter;
+      if (!F.isDeclaration())
+        FOC.runOnFunction(F);
+  }
+  return PreservedAnalyses::all();
+}
+#endif

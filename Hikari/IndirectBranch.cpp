@@ -125,8 +125,13 @@ struct IndirectBranch : public FunctionPass {
             ConstantInt::get(Type::getInt32Ty(Func.getParent()->getContext()),
                              indexmap[BI->getSuccessor(0)]);
       }
+#if LLVM_VERSION_MAJOR >= 13
+      Value *GEP = IRB.CreateGEP(LoadFrom->getType()->getPointerElementType(), LoadFrom, {zero, index});
+      LoadInst *LI = IRB.CreateLoad(GEP->getType()->getPointerElementType(), GEP, "IndirectBranchingTargetAddress");
+#else
       Value *GEP = IRB.CreateGEP(LoadFrom, {zero, index});
       LoadInst *LI = IRB.CreateLoad(GEP, "IndirectBranchingTargetAddress");
+#endif
       IndirectBrInst *indirBr = IndirectBrInst::Create(LI, BBs.size());
       for (BasicBlock *BB : BBs) {
         indirBr->addDestination(BB);
@@ -148,3 +153,18 @@ FunctionPass *llvm::createIndirectBranchPass(bool flag) {
 }
 char IndirectBranch::ID = 0;
 INITIALIZE_PASS(IndirectBranch, "indibran", "IndirectBranching", true, true)
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses IndirectBranchPass::run(Module &M, ModuleAnalysisManager& AM) {
+  IndirectBranch IB;
+  vector<Function *> funcs;
+  for (Module::iterator iter = M.begin(); iter != M.end(); iter++) {
+    funcs.push_back(&*iter);
+  }
+  for (Function *F : funcs) {
+    IB.runOnFunction(*F);
+  }
+
+  return PreservedAnalyses::all();
+}
+#endif

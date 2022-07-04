@@ -24,6 +24,9 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CommandLine.h"
 #include "Transforms/Obfuscation/CryptoUtils.h"
+#if LLVM_VERSION_MAJOR >= 13
+#include "llvm/Passes/PassBuilder.h"
+#endif
 
 // Namespace
 using namespace llvm;
@@ -33,6 +36,13 @@ namespace llvm {
 	FunctionPass *createSubstitutionPass();
 	FunctionPass *createSubstitutionPass(bool flag);
 	void initializeSubstitutionPass(PassRegistry &Registry);
+#if LLVM_VERSION_MAJOR >= 13
+	class SubstitutionPass : public PassInfoMixin<SubstitutionPass>{ 
+        public:
+            PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+            static bool isRequired() { return true; }
+    };
+#endif
 }
 
 #endif

@@ -26,6 +26,15 @@
 #define NUMBER_OR_SUBST 2
 #define NUMBER_XOR_SUBST 2
 
+namespace 
+{
+  using namespace llvm;
+  static BinaryOperator *CreateFNeg(Value *Op, const Twine &Name = "", Instruction *InsertBefore = nullptr) {
+    Value *zero = ConstantFP::getZeroValueForNegation(Op->getType());
+    return BinaryOperator::Create(Instruction::FSub, zero, Op, Name, InsertBefore);
+  }
+} // namespace 
+
 static cl::opt<int>
     ObfTimes("sub_loop",
              cl::desc("Choose how many time the -sub pass loops on a function"),
@@ -240,10 +249,17 @@ void Substitution::addDoubleNeg(BinaryOperator *bo) {
     // op->setHasNoSignedWrap(bo->hasNoSignedWrap());
     // op->setHasNoUnsignedWrap(bo->hasNoUnsignedWrap());
   } else {
+#if LLVM_VERSION_MAJOR >= 13
+    op = ::CreateFNeg(bo->getOperand(0), "", bo);
+    op2 = ::CreateFNeg(bo->getOperand(1), "", bo);
+    op = BinaryOperator::Create(Instruction::FAdd, op, op2, "", bo);
+    op = ::CreateFNeg(op, "", bo);
+#else
     op = BinaryOperator::CreateFNeg(bo->getOperand(0), "", bo);
     op2 = BinaryOperator::CreateFNeg(bo->getOperand(1), "", bo);
     op = BinaryOperator::Create(Instruction::FAdd, op, op2, "", bo);
     op = BinaryOperator::CreateFNeg(op, "", bo);
+#endif
   }
 
   bo->replaceAllUsesWith(op);
@@ -322,7 +338,11 @@ void Substitution::subNeg(BinaryOperator *bo) {
     // op->setHasNoSignedWrap(bo->hasNoSignedWrap());
     // op->setHasNoUnsignedWrap(bo->hasNoUnsignedWrap());
   } else {
+#if LLVM_VERSION_MAJOR >= 13
+    op = ::CreateFNeg(bo->getOperand(1), "", bo);
+#else
     op = BinaryOperator::CreateFNeg(bo->getOperand(1), "", bo);
+#endif
     op = BinaryOperator::Create(Instruction::FAdd, bo->getOperand(0), op, "",
                                 bo);
   }
@@ -585,3 +605,12 @@ void Substitution::xorSubstitutionRand(BinaryOperator *bo) {
   op = BinaryOperator::Create(Instruction::Xor, op, op1, "", bo);
   bo->replaceAllUsesWith(op);
 }
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses SubstitutionPass::run(Function& F, FunctionAnalysisManager& AM) {
+  Substitution s;
+  s.runOnFunction(F);
+
+  return PreservedAnalyses::all();
+}
+#endif

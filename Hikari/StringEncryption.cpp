@@ -112,7 +112,11 @@ struct StringEncryption : public ModulePass {
           GV->getSection().find(StringRef("__objc")) == string::npos &&
           GV->getName().find("OBJC") == string::npos) {
         if (GV->getInitializer()->getType() ==
+#if LLVM_VERSION_MAJOR >= 13
+            StructType::getTypeByName(Func->getParent()->getContext(), "struct.__NSConstantString_tag")) {
+#else
             Func->getParent()->getTypeByName("struct.__NSConstantString_tag")) {
+#endif
           objCStrings.insert(GV);
           rawStrings.insert(
               cast<GlobalVariable>(cast<ConstantStruct>(GV->getInitializer())
@@ -275,11 +279,15 @@ struct StringEncryption : public ModulePass {
     // Insert DecryptionCode
     HandleDecryptionBlock(B, C, GV2Keys);
     // Add atomic load checking status in A
+#if LLVM_VERSION_MAJOR >= 13
+    LoadInst *LI = IRB.CreateLoad(StatusGV->getType()->getPointerElementType(), StatusGV, "LoadEncryptionStatus");
+#else
     LoadInst *LI = IRB.CreateLoad(StatusGV, "LoadEncryptionStatus");
+#endif
     LI->setAtomic(AtomicOrdering::Acquire); // Will be released at the start of
                                             // C
 #if LLVM_VERSION_MAJOR >= 10
-    LI->setAlignment(MaybeAlign(4));
+    LI->setAlignment(llvm::Align(4));
 #else
     LI->setAlignment(4);
 #endif
@@ -294,7 +302,7 @@ struct StringEncryption : public ModulePass {
     StoreInst *SI = IRBC.CreateStore(
         ConstantInt::get(Type::getInt32Ty(Func->getContext()), 1), StatusGV);
 #if LLVM_VERSION_MAJOR >= 10
-    SI->setAlignment(MaybeAlign(4));
+    SI->setAlignment(llvm::Align(4));
 #else
     SI->setAlignment(4);
 #endif
@@ -313,8 +321,13 @@ struct StringEncryption : public ModulePass {
       // Also, this hides keys
       for (unsigned i = 0; i < CastedCDA->getType()->getNumElements(); i++) {
         Value *offset = ConstantInt::get(Type::getInt32Ty(B->getContext()), i);
+#if LLVM_VERSION_MAJOR >= 13
+        Value *GEP = IRB.CreateGEP(iter->first->getType()->getPointerElementType(), iter->first, {zero, offset});
+        LoadInst *LI = IRB.CreateLoad(GEP->getType()->getPointerElementType(), GEP, "EncryptedChar");
+#else
         Value *GEP = IRB.CreateGEP(iter->first, {zero, offset});
         LoadInst *LI = IRB.CreateLoad(GEP, "EncryptedChar");
+#endif
         Value *XORed = IRB.CreateXor(LI, CastedCDA->getElementAsConstant(i));
         IRB.CreateStore(XORed, GEP);
       }
@@ -335,3 +348,12 @@ ModulePass *createStringEncryptionPass(bool flag) {
 char StringEncryption::ID = 0;
 INITIALIZE_PASS(StringEncryption, "strcry", "Enable String Encryption", true,
                 true)
+
+#if LLVM_VERSION_MAJOR >= 13
+PreservedAnalyses StringEncryptionPass::run(Module &M, ModuleAnalysisManager& AM) {
+  StringEncryption SE;
+  SE.runOnModule(M);
+
+  return PreservedAnalyses::all();
+}
+#endif
